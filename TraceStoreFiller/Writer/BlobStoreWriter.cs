@@ -11,8 +11,6 @@ namespace TraceStoreFiller
     {
         public string Endpoint { get; }
         public string Namespace { get; }
-        private string? _lastPath;
-        private int _directoryCounter = 0;
         private BlobServiceClient _blobServiceClient;
         private BlobContainerClient _containerClient;
 
@@ -32,22 +30,14 @@ namespace TraceStoreFiller
         {
             var path = $"{timeCategory.Year}/{timeCategory.Month}/{timeCategory.Day}/{timeCategory.Hour}/{timeCategory.Minute}/{Endpoint}/{Namespace}";
 
-            if (path != _lastPath)
-            {
-                _directoryCounter = 0;
-            }
-
             BlobClient blobClient;
             string fileName;
             while (true)
             {
-                fileName = $"{path}/{_directoryCounter}.parquet";
+                fileName = $"{path}/{Guid.NewGuid().ToString()}.parquet";
                 blobClient = _containerClient.GetBlobClient(fileName);
 
-                if (await blobClient.ExistsAsync())
-                {
-                    _directoryCounter += 1;
-                } else
+                if (!await blobClient.ExistsAsync())
                 {
                     break;
                 }
@@ -59,9 +49,6 @@ namespace TraceStoreFiller
             {
                 await WriteIndex(chunk, fileName);
             }
-
-            _directoryCounter += 1;
-            _lastPath = path;
         }
     }
 }

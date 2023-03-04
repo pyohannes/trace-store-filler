@@ -37,8 +37,21 @@ namespace TraceStoreFiller
                 _directoryCounter = 0;
             }
 
-            var fileName = $"{path}/{_directoryCounter}.parquet";
-            BlobClient blobClient = _containerClient.GetBlobClient(fileName);
+            BlobClient blobClient;
+            string fileName;
+            while (true)
+            {
+                fileName = $"{path}/{_directoryCounter}.parquet";
+                blobClient = _containerClient.GetBlobClient(fileName);
+
+                if (await blobClient.ExistsAsync())
+                {
+                    _directoryCounter += 1;
+                } else
+                {
+                    break;
+                }
+            }
 
             await blobClient.UploadAsync(dataStream, true);
 

@@ -41,7 +41,7 @@ namespace TraceStoreFiller
             query = new();
             foreach (var tci in traceChunkIndex)
             {
-                query.AppendLine($"{ToQS(tci.TraceSetId)},{ToQS(tci.TraceId)},{ToQS(tci.cloudRole)},{ToQS(tci.cloudRoleInstance)},{ToQS(tci.Namespace)},{ToQS(tci.Endpoint)},{ToQS(tci.DataRegion)},{tci.Success.ToString()},{ToQS(tci.RootOperationName)},{ToQS(tci.BlobPath)}");
+                query.AppendLine($"{ToQS(tci.TraceSetId)},{ToQS(tci.TraceId)},{ToQS(tci.cloudRole)},{ToQS(tci.cloudRoleInstance)},{ToQS(tci.Namespace)},{ToQS(tci.Endpoint)},{ToQS(tci.DataRegion)},{tci.Success.ToString()},{ToQS(tci.RootOperationName)},{ToQS(tci.BlobPath)},{tci.SpanCount}");
             }
 
             await _kustoIngester.ExecuteQuery(query.ToString(), _dbName, "TraceChunkIndex");

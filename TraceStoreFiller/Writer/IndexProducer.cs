@@ -36,6 +36,7 @@ namespace TraceStoreFiller
         public string TraceId;
         public string TraceSetId;
         public string BlobPath;
+        public long SpanCount;
     }
 
     internal class IndexProducer
@@ -90,7 +91,8 @@ namespace TraceStoreFiller
                 RootOperationName = chunk.RootOperationName,
                 TraceId = chunk.trace.TraceId,
                 TraceSetId = chunk.trace.traceSet.TraceSetId,
-                BlobPath = blobPath
+                BlobPath = blobPath,
+                SpanCount = chunk.spans.Count
             });
 
             if (_traceChunkIndices.Count > _chunkCacheSize)

@@ -28,6 +28,8 @@ namespace TraceStoreFiller
             {
                 Console.WriteLine($"Error: {e.Message}");
 
+                Thread.Sleep(TimeSpan.FromMinutes(1));
+
                 _provider = KustoClientFactory.CreateCslQueryProvider(_connectionStringBuilder);
                 return await _provider.ExecuteQueryAsync(database, query, new ClientRequestProperties());
             }

@@ -10,6 +10,7 @@ namespace TraceStoreFiller
     {
         private ICslQueryProvider _provider;
         private KustoConnectionStringBuilder? _connectionStringBuilder;
+        private ClientRequestProperties _requestProperties;
 
         public QueryExecutor(string clusterUri)
         {
@@ -17,13 +18,17 @@ namespace TraceStoreFiller
                 .WithAadAzCliAuthentication();
 
             _provider = KustoClientFactory.CreateCslQueryProvider(_connectionStringBuilder);
+
+            _requestProperties = new ClientRequestProperties();
+
+            _requestProperties.SetOption(ClientRequestProperties.OptionQueryConsistency, ClientRequestProperties.OptionQueryConsistency_Weak);
         }
 
         public async Task<IDataReader> ExecuteQuery(string query, string database = "CorrelationPlatformDB")
         {
             try
             {
-                return await _provider.ExecuteQueryAsync(database, query, new ClientRequestProperties());
+                return await _provider.ExecuteQueryAsync(database, query, _requestProperties);
             } catch (Exception e)
             {
                 Console.WriteLine($"Error: {e.Message}");
@@ -31,7 +36,7 @@ namespace TraceStoreFiller
                 Thread.Sleep(TimeSpan.FromMinutes(1));
 
                 _provider = KustoClientFactory.CreateCslQueryProvider(_connectionStringBuilder);
-                return await _provider.ExecuteQueryAsync(database, query, new ClientRequestProperties());
+                return await _provider.ExecuteQueryAsync(database, query, _requestProperties);
             }
         }
 

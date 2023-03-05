@@ -100,7 +100,9 @@ namespace TraceStoreFiller
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine($"Exception caught, skipping trace set: {e.Message}, {e.StackTrace}");
+                    Thread.Sleep(TimeSpan.FromMinutes(1));
+
+                    Console.WriteLine($"Exception caught, skipping trace set: {e.Message}");
                     continue;
                 }
             }
@@ -112,6 +114,9 @@ namespace TraceStoreFiller
             tc.TraceSetId = Guid.NewGuid().ToString();
 
             tc.traces = GetTraceListFromSpans(spans, traceSetIds);
+
+            tc.startTime = tc.traces[0].startTime;
+            tc.endTime = tc.traces[0].endTime;
 
             foreach (var trace in tc.traces)
             {

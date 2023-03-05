@@ -16,7 +16,7 @@ namespace TraceStoreFiller
 
         private QueryExecutor _kustoIndexQuery;
 
-        public DuplicateTraceIdFilter(string kustoIndexConnectionString, int batchSize = 10)
+        public DuplicateTraceIdFilter(string kustoIndexConnectionString, int batchSize = 200)
         {
             _batchSize = batchSize;
 

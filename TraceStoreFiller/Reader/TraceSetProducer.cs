@@ -6,7 +6,6 @@ namespace TraceStoreFiller
     internal class TraceSetProducer
     {
         private QueryExecutor _queryExecutor;
-        private int _batchSize;
         private List<TraceSet> _cachedTraceSets = new();
 
         private const int _traceSetSizeLimit = 10000;
@@ -15,10 +14,9 @@ namespace TraceStoreFiller
 
         public ChannelWriter<TraceSet> TraceSetWriter;
 
-        public TraceSetProducer(string clusterUri, int batchSize = 2)
+        public TraceSetProducer(string clusterUri)
         {
             _queryExecutor = new QueryExecutor(clusterUri);
-            _batchSize = batchSize;
         }
 
         public async Task StartProcessingAsync()

@@ -16,7 +16,7 @@ namespace TraceStoreFiller
 
         public ChannelWriter<List<string>> TraceSetIdWriter;
 
-        public TraceSetIdsProducer(string clusterUri, int batchSize = 2)
+        public TraceSetIdsProducer(string clusterUri, int batchSize = 200)
         {
             _queryExecutor = new QueryExecutor(clusterUri);
             _batchSize = batchSize;

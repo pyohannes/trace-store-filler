@@ -85,7 +85,7 @@ namespace TraceStoreFiller
                 }
             }
 
-            Console.WriteLine($"Read trace ids for namespace {ns.namespace_} for timestamp {_windowPosition.ToString()}");
+            Console.WriteLine($"Read {_cachedTraceIds.Count} trace ids for namespace {ns.namespace_} for timestamp {_windowPosition.ToString()}");
 
             _windowPosition += TimeSpan.FromSeconds(1);
         }

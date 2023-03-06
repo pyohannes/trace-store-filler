@@ -37,7 +37,7 @@ namespace TraceStoreFiller
                 await Init();
             }
 
-            var blobName = _blobNames.Find(bn => bn.StartsWith($"export_{_counter}"));
+            var blobName = _blobNames.Find(bn => bn.StartsWith($"export_{_counter}_"));
 
             if (blobName == null)
             {

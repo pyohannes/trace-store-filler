@@ -15,12 +15,12 @@ namespace TraceStoreFiller
             _blobStorageConnectionString = blobStorageConnectionString;
         }
 
-        public ParquetWriter GetWriter(string endpoint, string namespace_, IndexProducer producer)
+        public ParquetWriter GetWriter(IndexProducer producer)
         {
-            var blobStoreWriter = new BlobStoreWriter(_blobStorageConnectionString, endpoint, namespace_);
+            var blobStoreWriter = new BlobStoreWriter(_blobStorageConnectionString);
             blobStoreWriter.WriteIndex = producer.IndexTraceChunk;
 
-            var parquetWriter = new ParquetWriter(endpoint, namespace_);
+            var parquetWriter = new ParquetWriter();
 
             parquetWriter.WriteStream = blobStoreWriter.WriteBlob;
 

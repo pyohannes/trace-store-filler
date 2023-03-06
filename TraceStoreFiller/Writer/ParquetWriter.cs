@@ -10,9 +10,6 @@ namespace TraceStoreFiller
 {
     internal class ParquetWriter
     {
-        public string Endpoint { get; set; }
-        public string Namespace { get; set; }
-
         public int MaxSpansPerFile { get; set; } = 50000;
 
         private readonly GroupNode _schema;
@@ -26,11 +23,8 @@ namespace TraceStoreFiller
 
         public Func<List<TraceChunk>, Stream, DateTime, Task> WriteStream;
 
-        public ParquetWriter(string endpoint, string namespace_)
+        public ParquetWriter()
         {
-            Endpoint = endpoint;
-            Namespace = namespace_;
-
             _schema =
                 new GroupNode("schema", Repetition.Required, new Node[]
                 {
@@ -129,8 +123,6 @@ namespace TraceStoreFiller
 
         public async Task WriteChunk(TraceChunk chunk)
         {
-            Console.WriteLine($"Writing chunk of {chunk.spans.Count} spans to {Endpoint}/{Namespace}, current size: {_spanCounter} spans, {_chunkCounter} chunks");
-
             _spanCounter += chunk.spans.Count;
             _chunkCounter += 1;
 

@@ -1,6 +1,6 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using CsvHelper;
+using Newtonsoft.Json.Linq;
 using System.Data;
-using System.Diagnostics;
 using System.Text;
 
 namespace TraceStoreFiller
@@ -32,6 +32,92 @@ namespace TraceStoreFiller
         public string? messagingSystem { get; set; }
         public string? messagingDestination { get; set; }
 
+        public static Span From(CsvReader reader)
+        {
+            Span span = new Span();
+
+            span.SpanId = reader.GetField<string>("w3cSpanId");
+            span.TraceId = reader.GetField<string>("w3cTraceId");
+            span.ParentSpanId = reader.GetField<string>("w3cParentId");
+            span.StartTime = reader.GetField<DateTime>("startTime");
+            span.EndTime = reader.GetField<DateTime>("endTime");
+            span.Namespace = reader.GetField<string>("namespace");
+            span.Endpoint = reader.GetField<string>("endpoint");
+            span.Success = reader.GetField<bool>("success");
+            span.Name = reader.GetField<string>("spanName");
+            span.Kind = reader.GetField<int>("spanKind");
+            span.DataRegion = reader.GetField<string>("dataRegion");
+
+            var cloudIdentity = reader.GetField<string>("cloudIdentity");
+            if (!string.IsNullOrWhiteSpace(cloudIdentity))
+            {
+                span.cloudIdentity = JObject.Parse(cloudIdentity).ToObject<Dictionary<string, object?>>();
+            }
+
+            try
+            {
+                var attributes = reader.GetField<string>("attributes");
+                if (!string.IsNullOrWhiteSpace(attributes)) {
+                    foreach (var attr in JObject.Parse(attributes).ToObject<Dictionary<string, object?>>())
+                    {
+                        switch (attr.Key)
+                        {
+                            case "httpUrl":
+                                span.httpUrl = (string?)attr.Value;
+                                break;
+                            case "httpMethod":
+                                span.httpMethod = (string?)attr.Value;
+                                break;
+                            case "httpStatusCode":
+                                span.httpStatusCode = (string?)attr.Value;
+                                break;
+                            case "dbName":
+                                span.dbName = (string?)attr.Value;
+                                break;
+                            case "dbSystem":
+                                span.dbSystem = (string?)attr.Value;
+                                break;
+                            case "dbStatement":
+                                span.dbStatement = (string?)attr.Value;
+                                break;
+                            case "messagingSystem":
+                                span.messagingSystem = (string?)attr.Value;
+                                break;
+                            case "messagingDestination":
+                                span.messagingDestination = (string?)attr.Value;
+                                break;
+                            case "azureResourceProvider":
+                                span.azureResourceProvider = (string?)attr.Value;
+                                break;
+                            default:
+                                span.attributes[attr.Key] = attr.Value;
+                                break;
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+            }
+
+            try
+            {
+                var customAttributes = reader.GetField<string>("customAttributes");
+                if (!string.IsNullOrWhiteSpace(customAttributes))
+                {
+                    foreach (var attr in JObject.Parse(customAttributes).ToObject<Dictionary<string, object?>>())
+                    {
+                        span.attributes[attr.Key] = attr.Value;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+            }
+
+            return span;
+        }
+
         public static Span From(IDataReader reader)
         {
             Span span = new Span();
@@ -52,7 +138,8 @@ namespace TraceStoreFiller
             {
                 var cloudIdentity = (JObject)reader.GetValue(6);
                 span.cloudIdentity = cloudIdentity.ToObject<Dictionary<string, object>>();
-            } catch (Exception e)
+            }
+            catch (Exception e)
             {
                 span.cloudIdentity = null;
             }
@@ -68,7 +155,7 @@ namespace TraceStoreFiller
                             span.httpUrl = (string?)attr.Value;
                             break;
                         case "httpMethod":
-                            span.httpMethod= (string?)attr.Value;
+                            span.httpMethod = (string?)attr.Value;
                             break;
                         case "httpStatusCode":
                             span.httpStatusCode = (string?)attr.Value;
@@ -96,7 +183,8 @@ namespace TraceStoreFiller
                             break;
                     }
                 }
-            } catch (Exception e)
+            }
+            catch (Exception e)
             {
             }
 
@@ -107,7 +195,8 @@ namespace TraceStoreFiller
                 {
                     span.attributes[attr.Key] = attr.Value;
                 }
-            } catch (Exception e)
+            }
+            catch (Exception e)
             {
             }
 
@@ -124,7 +213,7 @@ namespace TraceStoreFiller
             sb.AppendLine($"      Parent:    {ParentSpanId}");
             sb.AppendLine($"      StartTime: {StartTime}");
             sb.AppendLine($"      Duration:  {EndTime - StartTime}");
-            sb.Append(     "      Attributes: {");
+            sb.Append("      Attributes: {");
             sb.Append(string.Join(", ", attributes.Select(attr => $"\"{attr.Key}\": \"{attr.Value}\"")));
             sb.Append("}");
 

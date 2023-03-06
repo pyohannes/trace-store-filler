@@ -22,21 +22,24 @@ namespace TraceStoreFiller
 
         public async Task WriteIndices(List<TraceSetIndex> traceSetIndex, List<TraceIndex> traceIndex, List<TraceChunkIndex> traceChunkIndex)
         {
-            StringBuilder query = new();
+            /*StringBuilder query = new();
             foreach (var tsi in traceSetIndex)
             {
                 query.AppendLine($"{ToQS(tsi.TraceSetId)},{ToQS(ToIngestDateTime(tsi.StartTime))},{ToQS(ToIngestDateTime(tsi.EndTime))},{(long)tsi.Duration.TotalMilliseconds}");
             }
 
             await _kustoIngester.ExecuteQuery(query.ToString(), _dbName, "TraceSetIndex");
+            */
 
-            query = new();
+            StringBuilder query = new();
             foreach (var ti in traceIndex)
             {
                 query.AppendLine($"{ToQS(ti.TraceId)},{ToQS(ToIngestDateTime(ti.StartTime))},{ToQS(ToIngestDateTime(ti.EndTime))},{(long)ti.Duration.TotalMilliseconds}");
             }
 
             await _kustoIngester.ExecuteQuery(query.ToString(), _dbName, "TraceIndex");
+
+            Console.WriteLine($"Wrote TraceIndex, {traceIndex.Count} rows");
 
             query = new();
             foreach (var tci in traceChunkIndex)
@@ -45,6 +48,8 @@ namespace TraceStoreFiller
             }
 
             await _kustoIngester.ExecuteQuery(query.ToString(), _dbName, "TraceChunkIndex");
+
+            Console.WriteLine($"Wrote TraceChunkIndex, {traceChunkIndex.Count} rows");
         }
 
         private string ToIngestDateTime(DateTime dateTime)

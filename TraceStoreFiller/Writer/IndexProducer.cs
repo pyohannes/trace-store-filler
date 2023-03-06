@@ -49,7 +49,7 @@ namespace TraceStoreFiller
 
         public KustoIndexWriter _indexWriter;
 
-        public IndexProducer(KustoIndexWriter indexWriter, int chunkCacheSize = 100)
+        public IndexProducer(KustoIndexWriter indexWriter, int chunkCacheSize = 1000)
         {
             _chunkCacheSize = chunkCacheSize;
             _indexWriter = indexWriter;

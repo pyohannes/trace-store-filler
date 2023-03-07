@@ -5,7 +5,7 @@ using System.Text;
 
 namespace TraceStoreFiller
 {
-    internal class Span
+    public class Span
     {
         public string SpanId { get; set; }
         public string TraceId { get; set; }

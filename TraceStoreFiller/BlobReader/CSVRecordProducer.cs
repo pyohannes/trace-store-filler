@@ -27,20 +27,7 @@ namespace TraceStoreFiller
             {
                 var data = await GetNextBlobStream();
 
-                var stream1 = new MemoryStream(data.ToArray());
-                using (var unzipper1 = new GZipStream(stream1, CompressionMode.Decompress))
-                using (var reader1 = new StreamReader(unzipper1))
-                {
-                    var d = reader1.ReadToEnd();
-                }
-
                 var stream = new MemoryStream(data.ToArray());
-
-                var config = new CsvConfiguration(CultureInfo.InvariantCulture)
-                {
-
-                };
-
 
                 using (var unzipper = new GZipStream(stream, CompressionMode.Decompress))
                 using (var reader = new StreamReader(unzipper))

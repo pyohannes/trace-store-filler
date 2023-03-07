@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 
 namespace TraceStoreFiller
 {
-    internal class QueryExecutor
+    public class QueryExecutor
     {
         private ICslQueryProvider _provider;
         private KustoConnectionStringBuilder? _connectionStringBuilder;
@@ -24,7 +24,7 @@ namespace TraceStoreFiller
             _requestProperties.SetOption(ClientRequestProperties.OptionQueryConsistency, ClientRequestProperties.OptionQueryConsistency_Weak);
         }
 
-        public async Task<IDataReader> ExecuteQuery(string query, string database = "CorrelationPlatformDB")
+        public async Task<IDataReader> ExecuteQueryAsync(string query, string database = "CorrelationPlatformDB")
         {
             try
             {
@@ -37,6 +37,22 @@ namespace TraceStoreFiller
 
                 _provider = KustoClientFactory.CreateCslQueryProvider(_connectionStringBuilder);
                 return await _provider.ExecuteQueryAsync(database, query, _requestProperties);
+            }
+        }
+
+        public IDataReader ExecuteQuery(string query, string database = "CorrelationPlatformDB")
+        {
+            try
+            {
+                return _provider.ExecuteQuery(database, query, _requestProperties);
+            } catch (Exception e)
+            {
+                Console.WriteLine($"Error: {e.Message}");
+
+                Thread.Sleep(TimeSpan.FromMinutes(1));
+
+                _provider = KustoClientFactory.CreateCslQueryProvider(_connectionStringBuilder);
+                return _provider.ExecuteQuery(database, query, _requestProperties);
             }
         }
 

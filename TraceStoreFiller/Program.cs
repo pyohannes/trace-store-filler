@@ -52,7 +52,7 @@ for (int i = 0; i < 5; i++)
 var writerFactory = new ParquetWriterFactory("DefaultEndpointsProtocol=https;AccountName=tracelakeeus;AccountKey=1VBGMao9Nme2o7PzlwWYsZj1fWp7g2eULtoIlKLslOZ1GaKANqrP1HnU4/UK0g8Xn03O86WV8MRv+ASt/JZUHw==;EndpointSuffix=core.windows.net");
 
 var namespaceRouters = new List<NamespaceRouter>();
-for (int i = 0; i < 5; i++)
+for (int i = 0; i < 2; i++)
 {
     var indexWriter = new KustoIndexWriter("https://ingest-tracestoreindexeus.eastus.kusto.windows.net/");
     var indexProducer = new IndexProducer(indexWriter);

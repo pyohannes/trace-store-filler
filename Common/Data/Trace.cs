@@ -6,12 +6,12 @@ using System.Threading.Tasks;
 
 namespace TraceStoreFiller
 {
-    internal class Trace
+    public class Trace
     {
         public string TraceId { get; set; }
         public DateTime startTime { get; set; }
         public DateTime endTime { get; set; }
-        public List<TraceChunk> chunks { get; set; }
+        public List<TraceChunk> chunks { get; set; } = new();
 
         public TraceSet traceSet { get; set; } 
 

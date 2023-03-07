@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace TraceStoreFiller
 {
-    internal class TraceSet
+    public class TraceSet
     {
         public string TraceSetId { get; set; }
         public DateTime startTime { get; set; }

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace TraceStoreFiller
 {
-    internal class TraceChunk
+    public class TraceChunk
     {
         public string? cloudRole { get; set; }
         public string? cloudRoleInstance { get; set; }

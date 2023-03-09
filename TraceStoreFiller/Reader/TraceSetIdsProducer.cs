@@ -47,7 +47,7 @@ namespace TraceStoreFiller
 
                         newTraceIds.Clear();
 
-                        using (var reader = await _queryExecutor.ExecuteQuery(query))
+                        using (var reader = await _queryExecutor.ExecuteQueryAsync(query))
                         {
                             while (reader.Read())
                             {

@@ -77,7 +77,7 @@ namespace TraceStoreFiller
                 "| summarize count() by w3cTraceId " +
                 "| sort by count_ desc";
 
-            using (var reader = await _queryExecutor.ExecuteQuery(query))
+            using (var reader = await _queryExecutor.ExecuteQueryAsync(query))
             {
                 while (reader.Read())
                 {
@@ -101,7 +101,7 @@ namespace TraceStoreFiller
                 "| summarize count() by endpoint, namespace" +
                 "| sort by count_ desc";
 
-            using (var reader = await _queryExecutor.ExecuteQuery(query))
+            using (var reader = await _queryExecutor.ExecuteQueryAsync(query))
             {
                 while (reader.Read())
                 {

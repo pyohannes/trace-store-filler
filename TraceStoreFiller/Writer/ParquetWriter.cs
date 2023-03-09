@@ -1,20 +1,15 @@
-﻿using Kusto.Data;
-using Kusto.Data.Common;
-using Kusto.Data.Net.Client;
-using System.Data;
-using System.Runtime.InteropServices;
-using ParquetSharp.Schema;
+﻿using Kusto.Cloud.Platform.Utils;
 using ParquetSharp;
+using ParquetSharp.Schema;
+using System.Data;
 
 namespace TraceStoreFiller
 {
     internal class ParquetWriter
     {
-        public int MaxSpansPerFile { get; set; } = 50000;
+        public int MaxSpansPerFile { get; set; } = 200000;
 
         private readonly GroupNode _schema;
-        private ParquetFileWriter? _parquetWriter;
-        private int _fileIndex = 0;
         private int _chunkCounter;
         private int _spanCounter;
         private Stream? _outputStream;
@@ -85,230 +80,208 @@ namespace TraceStoreFiller
                 });
         }
 
-        private async Task<ParquetFileWriter> GetWriter()
-        {
-            if (_parquetWriter != null && _spanCounter > MaxSpansPerFile)
-            {
-                _parquetWriter.Dispose();
-
-                if (_outputStream != null)
-                {
-                    _outputStream.Seek(0, SeekOrigin.Begin);
-                    await WriteStream(_chunksInBlob, _outputStream, (DateTime)_earliestInFile);
-                }
-
-                _parquetWriter = null;
-                _outputStream = null;
-                _chunksInBlob = new();
-                _earliestInFile = null;
-            }
-
-            if (_parquetWriter == null)
-            {
-                _outputStream = new MemoryStream();
-                _parquetWriter = new ParquetFileWriter(
-                    _outputStream,
-                    _schema,
-                    new WriterPropertiesBuilder()
-                        .Compression(Compression.Snappy)
-                        .Build(),
-                    leaveOpen: true);
-
-                _spanCounter = 0;
-                _chunkCounter = 0;
-            }
-
-            return _parquetWriter;
-        }
-
         public async Task WriteChunk(TraceChunk chunk)
         {
             _spanCounter += chunk.spans.Count;
             _chunkCounter += 1;
-
-            var writer = await GetWriter();
-            RowGroupWriter rowGroupWriter = writer.AppendBufferedRowGroup();
 
             if (_earliestInFile == null || _earliestInFile > chunk.trace.startTime)
             {
                 _earliestInFile = chunk.trace.startTime;
             }
 
-
             _chunksInBlob.Add(chunk);
+
+            if (_spanCounter <= MaxSpansPerFile)
+            {
+                return;
+            }
+
+            _chunksInBlob.Sort((c1, c2) => c1.trace.TraceId.CompareTo(c2.trace.TraceId));
+
+            var outputStream = new MemoryStream();
+            var parquetWriter = new ParquetFileWriter(
+                    outputStream,
+                    _schema,
+                    new WriterPropertiesBuilder()
+                        .Compression(Compression.Snappy)
+                        .Build(),
+                    leaveOpen: true);
+
+            RowGroupWriter rowGroupWriter = parquetWriter.AppendBufferedRowGroup();
 
             //  0 TraceSetId
             using (LogicalColumnWriter<string> column = rowGroupWriter.Column(0).LogicalWriter<string>())
             {
-                column.WriteBatch(new string[] { chunk.trace.traceSet.TraceSetId }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.trace.traceSet.TraceSetId).ToArray(), 0, _chunksInBlob.Count);
             }
 
             //  1 TraceId
             using (LogicalColumnWriter<string> column = rowGroupWriter.Column(1).LogicalWriter<string>())
             {
-                column.WriteBatch(new string[] { chunk.trace.TraceId }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.trace.TraceId).ToArray(), 0, _chunksInBlob.Count);
             }
 
             //  2 Cloud role name
             using (LogicalColumnWriter<string?> column = rowGroupWriter.Column(2).LogicalWriter<string?>())
             {
-                column.WriteBatch(new string?[] { chunk.cloudRole }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.cloudRole).ToArray(), 0, _chunksInBlob.Count);
             }
 
             //  3 Cloud role instance
             using (LogicalColumnWriter<string?> column = rowGroupWriter.Column(3).LogicalWriter<string?>())
             {
-                column.WriteBatch(new string?[] { chunk.cloudRoleInstance }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.cloudRoleInstance).ToArray(), 0, _chunksInBlob.Count);
             }
 
             //  4 Namespace
             using (LogicalColumnWriter<string> column = rowGroupWriter.Column(4).LogicalWriter<string>())
             {
-                column.WriteBatch(new string[] { chunk.Namespace }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.Namespace).ToArray(), 0, _chunksInBlob.Count);
             }
 
             //  5 Endpoint
             using (LogicalColumnWriter<string> column = rowGroupWriter.Column(5).LogicalWriter<string>())
             {
-                column.WriteBatch(new string[] { chunk.Endpoint }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.Endpoint).ToArray(), 0, _chunksInBlob.Count);
             }
 
             //  6 Region
             using (LogicalColumnWriter<string> column = rowGroupWriter.Column(6).LogicalWriter<string>())
             {
-                column.WriteBatch(new string[] { chunk.DataRegion }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.DataRegion).ToArray(), 0, _chunksInBlob.Count);
             }
 
             //  7 Success
             using (LogicalColumnWriter<int> column = rowGroupWriter.Column(7).LogicalWriter<int>())
             {
-                column.WriteBatch(new int[] { chunk.Success ? 1: 0 }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.Success ? 1 : 0).ToArray(), 0, _chunksInBlob.Count);
             }
 
             //  8 OperationName
             using (LogicalColumnWriter<string> column = rowGroupWriter.Column(8).LogicalWriter<string>())
             {
-                column.WriteBatch(new string[] { chunk.RootOperationName }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.RootOperationName).ToArray(), 0, _chunksInBlob.Count);
             }
 
             //  9 Span Id
             using (LogicalColumnWriter<Nested<string>[]> column = rowGroupWriter.Column(9).LogicalWriter<Nested<string>[]>())
             {
-                column.WriteBatch(new Nested<string>[][] { chunk.spans.Select(sp => new Nested<string>(sp.SpanId)).ToArray() }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.spans.Select(sp => new Nested<string>(sp.SpanId)).ToArray()).ToArray(), 0, _chunksInBlob.Count);
             }
 
             // 10 Span Parent Id
             using (LogicalColumnWriter<Nested<string>[]> column = rowGroupWriter.Column(10).LogicalWriter<Nested<string>[]>())
             {
-                column.WriteBatch(new Nested<string>[][] { chunk.spans.Select(sp => new Nested<string>(sp.ParentSpanId)).ToArray() }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.spans.Select(sp => new Nested<string>(sp.ParentSpanId)).ToArray()).ToArray(), 0, _chunksInBlob.Count);
             }
 
             // 11 Span Start Time
             using (LogicalColumnWriter<Nested<DateTime>[]> column = rowGroupWriter.Column(11).LogicalWriter<Nested<DateTime>[]>())
             {
-                column.WriteBatch(new Nested<DateTime>[][] { chunk.spans.Select(sp => new Nested<DateTime>(sp.StartTime)).ToArray() }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.spans.Select(sp => new Nested<DateTime>(sp.StartTime)).ToArray()).ToArray(), 0, _chunksInBlob.Count);
             }
 
             // 12 Span End Time
             using (LogicalColumnWriter<Nested<DateTime>[]> column = rowGroupWriter.Column(12).LogicalWriter<Nested<DateTime>[]>())
             {
-                column.WriteBatch(new Nested<DateTime>[][] { chunk.spans.Select(sp => new Nested<DateTime>(sp.EndTime)).ToArray() }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.spans.Select(sp => new Nested<DateTime>(sp.EndTime)).ToArray()).ToArray(), 0, _chunksInBlob.Count);
             }
 
             // 13 Span Duration
             using (LogicalColumnWriter<Nested<long>[]> column = rowGroupWriter.Column(13).LogicalWriter<Nested<long>[]>())
             {
-                column.WriteBatch(new Nested<long>[][] { chunk.spans.Select(sp => new Nested<long>((sp.EndTime - sp.StartTime).Microseconds)).ToArray() }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.spans.Select(sp => new Nested<long>((sp.EndTime - sp.StartTime).Microseconds)).ToArray()).ToArray(), 0, _chunksInBlob.Count);
             }
 
             // 14 Span Name
             using (LogicalColumnWriter<Nested<string>[]> column = rowGroupWriter.Column(14).LogicalWriter<Nested<string>[]>())
             {
-                column.WriteBatch(new Nested<string>[][] { chunk.spans.Select(sp => new Nested<string>(sp.Name)).ToArray() }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.spans.Select(sp => new Nested<string>(sp.Name)).ToArray()).ToArray(), 0, _chunksInBlob.Count);
             }
 
             // 15 Span Kind
             using (LogicalColumnWriter<Nested<int>[]> column = rowGroupWriter.Column(15).LogicalWriter<Nested<int>[]>())
             {
-                column.WriteBatch(new Nested<int>[][] { chunk.spans.Select(sp => new Nested<int>(sp.Kind)).ToArray() }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.spans.Select(sp => new Nested<int>(sp.Kind)).ToArray()).ToArray(), 0, _chunksInBlob.Count);
             }
 
             // 16 Span Success
             using (LogicalColumnWriter<Nested<int>[]> column = rowGroupWriter.Column(16).LogicalWriter<Nested<int>[]>())
             {
-                column.WriteBatch(new Nested<int>[][] { chunk.spans.Select(sp => new Nested<int>(sp.Success ? 1 : 0)).ToArray() }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.spans.Select(sp => new Nested<int>(sp.Success ? 1 : 0)).ToArray()).ToArray(), 0, _chunksInBlob.Count);
             }
 
             // 17 Span Link ToTraceId 
             using (LogicalColumnWriter<Nested<Nested<string>[]>[]> column = rowGroupWriter.Column(17).LogicalWriter<Nested<Nested<string>[]>[]>())
             {
-                column.WriteBatch(new Nested<Nested<string>[]>[][] { chunk.spans.Select(sp => new Nested<Nested<string>[]>(sp.links.Select(link => new Nested<string>(link.Item1)).ToArray())).ToArray() }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.spans.Select(sp => new Nested<Nested<string>[]>(sp.links.Select(link => new Nested<string>(link.Item1)).ToArray())).ToArray()).ToArray(), 0, _chunksInBlob.Count);
             }
 
             // 18 Span Link ToSpanId
             using (LogicalColumnWriter<Nested<Nested<string>[]>[]> column = rowGroupWriter.Column(18).LogicalWriter<Nested<Nested<string>[]>[]>())
             {
-                column.WriteBatch(new Nested<Nested<string>[]>[][] { chunk.spans.Select(sp => new Nested<Nested<string>[]>(sp.links.Select(link => new Nested<string>(link.Item2)).ToArray())).ToArray() }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.spans.Select(sp => new Nested<Nested<string>[]>(sp.links.Select(link => new Nested<string>(link.Item2)).ToArray())).ToArray()).ToArray(), 0, _chunksInBlob.Count);
             }
 
             // 19 Span Attribute Key
             using (LogicalColumnWriter<Nested<string[]>[]> column = rowGroupWriter.Column(19).LogicalWriter<Nested<string[]>[]>())
             {
-                column.WriteBatch(new Nested<string[]>[][] { chunk.spans.Select(sp => new Nested<string[]>(sp.attributes.Select(attr => attr.Key).ToArray())).ToArray() }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.spans.Select(sp => new Nested<string[]>(sp.attributes.Select(attr => attr.Key).ToArray())).ToArray()).ToArray(), 0, _chunksInBlob.Count);
             }
 
             // 20 Span Attribute Value
             using (LogicalColumnWriter<Nested<string[]>[]> column = rowGroupWriter.Column(20).LogicalWriter<Nested<string[]>[]>())
             {
-                column.WriteBatch(new Nested<string[]>[][] { chunk.spans.Select(sp => new Nested<string[]>(sp.attributes.Select(attr => attr.Value == null ?  string.Empty : attr.Value.ToString()).ToArray())).ToArray() }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.spans.Select(sp => new Nested<string[]>(sp.attributes.Select(attr => attr.Value == null ? string.Empty : attr.Value.ToString()).ToArray())).ToArray()).ToArray(), 0, _chunksInBlob.Count);
             }
 
             // 21 Span httpUrl
             using (LogicalColumnWriter<Nested<string?>[]> column = rowGroupWriter.Column(21).LogicalWriter<Nested<string?>[]>())
             {
-                column.WriteBatch(new Nested<string?>[][] { chunk.spans.Select(sp => new Nested<string?>(sp.httpUrl)).ToArray() }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.spans.Select(sp => new Nested<string?>(sp.httpUrl)).ToArray()).ToArray(), 0, _chunksInBlob.Count);
             }
 
             // 22 Span httpMethod
             using (LogicalColumnWriter<Nested<string?>[]> column = rowGroupWriter.Column(22).LogicalWriter<Nested<string?>[]>())
             {
-                column.WriteBatch(new Nested<string?>[][] { chunk.spans.Select(sp => new Nested<string?>(sp.httpMethod)).ToArray() }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.spans.Select(sp => new Nested<string?>(sp.httpMethod)).ToArray()).ToArray(), 0, _chunksInBlob.Count);
             }
 
             // 23 Span httpStatusCodeh
             using (LogicalColumnWriter<Nested<string?>[]> column = rowGroupWriter.Column(23).LogicalWriter<Nested<string?>[]>())
             {
-                column.WriteBatch(new Nested<string?>[][] { chunk.spans.Select(sp => new Nested<string?>(sp.httpStatusCode)).ToArray() }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.spans.Select(sp => new Nested<string?>(sp.httpStatusCode)).ToArray()).ToArray(), 0, _chunksInBlob.Count);
             }
 
             // 24 Span dbName
             using (LogicalColumnWriter<Nested<string?>[]> column = rowGroupWriter.Column(24).LogicalWriter<Nested<string?>[]>())
             {
-                column.WriteBatch(new Nested<string?>[][] { chunk.spans.Select(sp => new Nested<string?>(sp.dbName)).ToArray() }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.spans.Select(sp => new Nested<string?>(sp.dbName)).ToArray()).ToArray(), 0, _chunksInBlob.Count);
             }
 
             // 25 Span dbSystem
             using (LogicalColumnWriter<Nested<string?>[]> column = rowGroupWriter.Column(25).LogicalWriter<Nested<string?>[]>())
             {
-                column.WriteBatch(new Nested<string?>[][] { chunk.spans.Select(sp => new Nested<string?>(sp.dbSystem)).ToArray() }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.spans.Select(sp => new Nested<string?>(sp.dbSystem)).ToArray()).ToArray(), 0, _chunksInBlob.Count);
             }
 
             // 26 Span dbStatement
             using (LogicalColumnWriter<Nested<string?>[]> column = rowGroupWriter.Column(26).LogicalWriter<Nested<string?>[]>())
             {
-                column.WriteBatch(new Nested<string?>[][] { chunk.spans.Select(sp => new Nested<string?>(sp.dbStatement)).ToArray() }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.spans.Select(sp => new Nested<string?>(sp.dbStatement)).ToArray()).ToArray(), 0, _chunksInBlob.Count);
             }
 
             // 27 Span messagingSystem
             using (LogicalColumnWriter<Nested<string?>[]> column = rowGroupWriter.Column(27).LogicalWriter<Nested<string?>[]>())
             {
-                column.WriteBatch(new Nested<string?>[][] { chunk.spans.Select(sp => new Nested<string?>(sp.messagingSystem)).ToArray() }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.spans.Select(sp => new Nested<string?>(sp.messagingSystem)).ToArray()).ToArray(), 0, _chunksInBlob.Count);
             }
 
             // 28 Span messagingDestination
             using (LogicalColumnWriter<Nested<string?>[]> column = rowGroupWriter.Column(28).LogicalWriter<Nested<string?>[]>())
             {
-                column.WriteBatch(new Nested<string?>[][] { chunk.spans.Select(sp => new Nested<string?>(sp.messagingDestination)).ToArray() }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.spans.Select(sp => new Nested<string?>(sp.messagingDestination)).ToArray()).ToArray(), 0, _chunksInBlob.Count);
             }
 
             // 29 Span azureResourceProvider
@@ -318,6 +291,19 @@ namespace TraceStoreFiller
             }
 
             rowGroupWriter.Dispose();
+
+            parquetWriter.Dispose();
+
+            if (_outputStream != null)
+            {
+                _outputStream.Seek(0, SeekOrigin.Begin);
+                await WriteStream(_chunksInBlob, _outputStream, (DateTime)_earliestInFile);
+            }
+
+            _earliestInFile = null;
+            _spanCounter = 0;
+            _chunkCounter = 0;
+            _chunksInBlob = new();
         }
     }
 }

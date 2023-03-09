@@ -37,7 +37,7 @@ namespace TraceStoreFiller
 
                     var links = new Dictionary<(string, string), List<(string, string)>>();
 
-                    using (var reader = await _queryExecutor.ExecuteQuery(query))
+                    using (var reader = await _queryExecutor.ExecuteQueryAsync(query))
                     {
                         while (reader.Read())
                         {
@@ -58,7 +58,7 @@ namespace TraceStoreFiller
                         $"| where w3cTraceId in {idsStr} \n" +
                         $"| count";
 
-                    using (var reader = await _queryExecutor.ExecuteQuery(query))
+                    using (var reader = await _queryExecutor.ExecuteQueryAsync(query))
                     {
                         if (reader.Read())
                         {
@@ -78,7 +78,7 @@ namespace TraceStoreFiller
 
                     var spans = new List<Span>();
 
-                    using (var reader = await _queryExecutor.ExecuteQuery(query))
+                    using (var reader = await _queryExecutor.ExecuteQueryAsync(query))
                     {
                         while (reader.Read())
                         {

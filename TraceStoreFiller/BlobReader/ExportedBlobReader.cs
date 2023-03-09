@@ -14,13 +14,14 @@ namespace TraceStoreFiller
 
         private List<string> _blobNames = new();
         private int _counter = 1;
+        private string _prefix;
 
-        public ExportedBlobReader(string connectionString)
+        public ExportedBlobReader(string connectionString, string prefix)
         {
             _blobServiceClient = new BlobServiceClient(connectionString);
 
             _containerClient = _blobServiceClient.GetBlobContainerClient("kustocopy2");
-
+            _prefix = prefix;
         }
 
         private async Task Init() {
@@ -37,7 +38,7 @@ namespace TraceStoreFiller
                 await Init();
             }
 
-            var blobName = _blobNames.Find(bn => bn.StartsWith($"export_{_counter}_"));
+            var blobName = _blobNames.Find(bn => bn.StartsWith($"{_prefix}/export_{_counter}_"));
 
             if (blobName == null)
             {

@@ -59,7 +59,7 @@ namespace TraceStoreFiller
             var query = $"TraceIndex \n" +
                         $"| where TraceId in ({string.Join(",", traceIdBatch.Select(id => $"\"{id}\""))}) \n" +
                         $"| project TraceId";
-            using (var reader = await _kustoIndexQuery.ExecuteQuery(query, database:  "traceindexv1"))
+            using (var reader = await _kustoIndexQuery.ExecuteQueryAsync(query, database:  "traceindexv1"))
             {
                 while (reader.Read())
                 {

@@ -2,6 +2,7 @@
 using ParquetSharp;
 using ParquetSharp.Schema;
 using System.Data;
+using System.Net;
 
 namespace TraceStoreFiller
 {
@@ -12,13 +13,15 @@ namespace TraceStoreFiller
         private readonly GroupNode _schema;
         private int _chunkCounter;
         private int _spanCounter;
-        private Stream? _outputStream;
         private DateTime? _earliestInFile;
         private List<TraceChunk> _chunksInBlob = new();
 
-        public Func<List<TraceChunk>, Stream, DateTime, Task> WriteStream;
+        public Func<List<TraceChunk>, Stream, DateTime, string, string, Task> WriteStream;
 
-        public ParquetWriter()
+        private string _endpoint;
+        private string _namespace;
+
+        public ParquetWriter(string endpoint, string namespace_)
         {
             _schema =
                 new GroupNode("schema", Repetition.Required, new Node[]
@@ -78,12 +81,17 @@ namespace TraceStoreFiller
                        })
                    }, LogicalType.List())
                 });
+
+            _endpoint = endpoint;
+            _namespace = namespace_;
         }
 
         public async Task WriteChunk(TraceChunk chunk)
         {
             _spanCounter += chunk.spans.Count;
             _chunkCounter += 1;
+
+            Console.WriteLine($"Writer for {_endpoint}/{_namespace}, got {_chunkCounter} chunks, {_spanCounter} spans");
 
             if (_earliestInFile == null || _earliestInFile > chunk.trace.startTime)
             {
@@ -287,17 +295,17 @@ namespace TraceStoreFiller
             // 29 Span azureResourceProvider
             using (LogicalColumnWriter<Nested<string?>[]> column = rowGroupWriter.Column(29).LogicalWriter<Nested<string?>[]>())
             {
-                column.WriteBatch(new Nested<string?>[][] { chunk.spans.Select(sp => new Nested<string?>(sp.azureResourceProvider)).ToArray() }, 0, 1);
+                column.WriteBatch(_chunksInBlob.Select(chunk => chunk.spans.Select(sp => new Nested<string?>(sp.azureResourceProvider)).ToArray()).ToArray(), 0, _chunksInBlob.Count);
             }
 
             rowGroupWriter.Dispose();
 
             parquetWriter.Dispose();
 
-            if (_outputStream != null)
+            if (outputStream != null)
             {
-                _outputStream.Seek(0, SeekOrigin.Begin);
-                await WriteStream(_chunksInBlob, _outputStream, (DateTime)_earliestInFile);
+                outputStream.Seek(0, SeekOrigin.Begin);
+                await WriteStream(_chunksInBlob, outputStream, (DateTime)_earliestInFile, _endpoint, _namespace);
             }
 
             _earliestInFile = null;

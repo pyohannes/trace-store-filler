@@ -3,18 +3,20 @@ using Kusto.Data.Common;
 using Kusto.Data.Net.Client;
 using System.Data;
 using System.Runtime.InteropServices;
+using System.Threading.Channels;
 
 namespace TraceStoreFiller
 {
     internal class DuplicateTraceIdFilter
     {
-        public Func<int, Task<List<string>>> TraceIdProducer;
         private List<string> _seenTraceIds = new();
-
         private List<string> _cachedTraceIds = new();
         private int _batchSize;
 
         private QueryExecutor _kustoIndexQuery;
+
+        public ChannelReader<TraceSet> UnfilteredTraceSets;
+        public ChannelWriter<TraceSet> FilteredTraceSets;
 
         public DuplicateTraceIdFilter(string kustoIndexConnectionString, int batchSize = 200)
         {
@@ -23,58 +25,59 @@ namespace TraceStoreFiller
             _kustoIndexQuery = new QueryExecutor(kustoIndexConnectionString);
         }
 
-        public async Task<List<string>> GetTraceIdsAsync(int count)
+        public async Task StartProcessingAsync()
         {
-            while (count > _cachedTraceIds.Count)
+            while (true)
             {
-                try
+                var traceSets = new List<TraceSet>();
+
+                while (traceSets.Count < _batchSize)
                 {
-                    await FillCache();
+                    traceSets.Add(await UnfilteredTraceSets.ReadAsync());
                 }
-                catch (Exception e)
+
+                var filteredTraceSets = new Dictionary<string, TraceSet>();
+
+                foreach (var traceSet in traceSets)
                 {
-                    Console.WriteLine($"Exception caught: {e.Message}, {e.StackTrace}");
-                }
-            }
-
-            var ids = _cachedTraceIds.GetRange(0, count);
-            _cachedTraceIds.RemoveRange(0, count);
-
-            return ids;
-        }
-
-        public async Task FillCache()
-        {
-            var traceIdBatch = await TraceIdProducer(_batchSize);
-
-            foreach (var traceId in traceIdBatch)
-            {
-                if (!_seenTraceIds.Contains(traceId))
-                {
-                    _seenTraceIds.Add(traceId);
-                    _cachedTraceIds.Add(traceId);
-                }
-            }
-
-            var query = $"TraceIndex \n" +
-                        $"| where TraceId in ({string.Join(",", traceIdBatch.Select(id => $"\"{id}\""))}) \n" +
-                        $"| project TraceId";
-            using (var reader = await _kustoIndexQuery.ExecuteQueryAsync(query, database:  "traceindexv1"))
-            {
-                while (reader.Read())
-                {
-                    var traceid = reader.GetString(0);
-
-                    if (_cachedTraceIds.Contains(traceid))
+                    var traceId = traceSet.traces[0].TraceId;
+                    if (!_seenTraceIds.Contains(traceId))
                     {
-                        _cachedTraceIds.Remove(traceid);
+                        _seenTraceIds.Add(traceId);
+                        filteredTraceSets[traceId] = traceSet;
                     }
                 }
-            }
 
-            if (_seenTraceIds.Count > 2000000)
-            {
-                _seenTraceIds.RemoveRange(0, 1000000);
+                if (filteredTraceSets.Count == 0)
+                {
+                    continue;
+                }
+
+                var query = $"TraceIndex \n" +
+                            $"| where TraceId in ({string.Join(",", filteredTraceSets.Keys.Select(id => $"\"{id}\""))}) \n" +
+                            $"| project TraceId";
+                using (var reader = await _kustoIndexQuery.ExecuteQueryAsync(query, database: "traceindexv1"))
+                {
+                    while (reader.Read())
+                    {
+                        var traceid = reader.GetString(0);
+
+                        if (filteredTraceSets.ContainsKey(traceid))
+                        {
+                            filteredTraceSets.Remove(traceid);
+                        }
+                    }
+                }
+
+                foreach (var t in filteredTraceSets.Values)
+                {
+                    await FilteredTraceSets.WriteAsync(t);
+                }
+
+                if (_seenTraceIds.Count > 2000000)
+                {
+                    _seenTraceIds.RemoveRange(0, 1000000);
+                }
             }
 
         }

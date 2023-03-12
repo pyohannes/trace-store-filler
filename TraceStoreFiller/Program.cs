@@ -1,5 +1,4 @@
 ﻿// See https://aka.ms/new-console-template for more information
-using System.Runtime.InteropServices;
 using System.Threading.Channels;
 using TraceStoreFiller;
 
@@ -36,19 +35,27 @@ var blobReader = new ExportedBlobReader(
     "0001");
 
 var spanChannel = Channel.CreateBounded<Span>(100000);
-var traceSetChannel = Channel.CreateBounded<TraceSet>(100);
+var traceSetChannel = Channel.CreateBounded<TraceSet>(1000);
+var filteredTraceSetChannel = Channel.CreateBounded<TraceSet>(1000);
 
 var csvProducer = new CSVProducer();
 csvProducer.GetNextBlobStream = blobReader.GetNextBlobStream;
 csvProducer.SpanWriter = spanChannel.Writer;
 
 var traceSetProducers = new List<TraceSetFromSpanProducer>();
+var duplicateTraceFilters = new List<DuplicateTraceIdFilter>();
+
 for (int i = 0; i < 5; i++)
 {
     var traceSetProducer = new TraceSetFromSpanProducer();
     traceSetProducer.SpanReader = spanChannel.Reader;
     traceSetProducer.TraceSetWriter = traceSetChannel.Writer;
     traceSetProducers.Add(traceSetProducer);
+
+    var duplicateTraceIdFilter = new DuplicateTraceIdFilter("https://tracestoreindexeus.eastus.kusto.windows.net/");
+    duplicateTraceIdFilter.UnfilteredTraceSets = traceSetChannel.Reader;
+    duplicateTraceIdFilter.FilteredTraceSets = filteredTraceSetChannel.Writer;
+    duplicateTraceFilters.Add(duplicateTraceIdFilter);
 }
 
 var writerFactory = new ParquetWriterFactory("DefaultEndpointsProtocol=https;AccountName=tracelakeeus;AccountKey=1VBGMao9Nme2o7PzlwWYsZj1fWp7g2eULtoIlKLslOZ1GaKANqrP1HnU4/UK0g8Xn03O86WV8MRv+ASt/JZUHw==;EndpointSuffix=core.windows.net");
@@ -60,12 +67,13 @@ for (int i = 0; i < 2; i++)
     var indexProducer = new IndexProducer(indexWriter);
 
     var namespaceRouter = new NamespaceRouter(writerFactory, indexProducer);
-    namespaceRouter.TraceSetReader = traceSetChannel.Reader;
+    namespaceRouter.TraceSetReader = filteredTraceSetChannel.Reader;
 
     namespaceRouters.Add(namespaceRouter);
 }
 
 await Task.WhenAll(
     csvProducer.StartProcessingAsync(),
+    Task.WhenAll(duplicateTraceFilters.Select(p => p.StartProcessingAsync())),
     Task.WhenAll(traceSetProducers.Select(p => p.StartProcessingAsync())),
     Task.WhenAll(namespaceRouters.Select(r => r.StartRouting())));

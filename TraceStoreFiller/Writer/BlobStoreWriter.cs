@@ -21,7 +21,7 @@ namespace TraceStoreFiller
             _containerClient = _blobServiceClient.GetBlobContainerClient("lakev1");
         }
 
-        public async Task WriteBlob(List<TraceChunk> chunks, Stream dataStream, DateTime timeCategory)
+        public async Task WriteBlob(List<TraceChunk> chunks, Stream dataStream, DateTime timeCategory, string endpoint, string namespace_)
         {
             var path = $"{timeCategory.Year}/{timeCategory.Month}/{timeCategory.Day}/{timeCategory.Hour}/{timeCategory.Minute}";
 
@@ -29,7 +29,7 @@ namespace TraceStoreFiller
             string fileName;
             while (true)
             {
-                fileName = $"{path}/{Guid.NewGuid().ToString()}.parquet";
+                fileName = $"{path}/{endpoint}-{namespace_}-{Guid.NewGuid().ToString()}.parquet";
                 blobClient = _containerClient.GetBlobClient(fileName);
 
                 if (!await blobClient.ExistsAsync())

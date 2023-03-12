@@ -5,8 +5,7 @@ namespace TraceStoreFiller
     internal class NamespaceRouter
     {
 
-        private Dictionary<(string endpoint, string namespace_), ParquetWriter> _routes = new();
-        private ParquetWriter _writer;
+        private Dictionary<(string endpoint, string namespace_), ParquetWriter> _rootNsWriters = new();
         private ParquetWriterFactory _writerFactory;
         private IndexProducer _indexProducer;
 
@@ -15,7 +14,7 @@ namespace TraceStoreFiller
         public NamespaceRouter(ParquetWriterFactory writerFactory, IndexProducer indexProducer)
         {
             _indexProducer = indexProducer;
-            _writer = writerFactory.GetWriter(indexProducer);
+            _writerFactory = writerFactory;
         }
 
         public async Task StartRouting(int batchSize = 2)
@@ -31,9 +30,18 @@ namespace TraceStoreFiller
                     {
                         await _indexProducer.IndexTrace(trace);
 
+                        var nsIndex = (trace.chunks[0].Endpoint, trace.chunks[0].Namespace);
+                        _ = _rootNsWriters.TryGetValue(nsIndex, out var writer);
+
+                        if (writer == null)
+                        {
+                            writer = _writerFactory.GetWriter(_indexProducer, nsIndex.Endpoint, nsIndex.Namespace);
+                            _rootNsWriters[nsIndex] = writer;
+                        }
+
                         foreach (var chunk in trace.chunks)
                         {
-                            await _writer.WriteChunk(chunk);
+                            await writer.WriteChunk(chunk);
                         }
                     }
                 }

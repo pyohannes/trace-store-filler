@@ -33,7 +33,6 @@ for (int i = 0; i < 10; i++)
 var blobReader = new ExportedBlobReader(
     "DefaultEndpointsProtocol=https;AccountName=tracelakeeus;AccountKey=1VBGMao9Nme2o7PzlwWYsZj1fWp7g2eULtoIlKLslOZ1GaKANqrP1HnU4/UK0g8Xn03O86WV8MRv+ASt/JZUHw==;EndpointSuffix=core.windows.net",
     new string[] {
-        "0001",
         "0002",
         "0003",
         "0004",

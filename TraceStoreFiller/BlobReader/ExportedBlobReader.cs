@@ -43,12 +43,15 @@ namespace TraceStoreFiller
             if (blobName == null && _prefixes.Count != 0)
             {
                 _prefixes.RemoveAt(0);
+                _counter = 1;
                 return await GetNextBlobStream();
             }
 
             if (blobName == null)
             {
-                throw new ArgumentException($"Blobs exhausted, read {_counter} blobs");
+                var text = $"Blobs exhausted, read {_counter} blobs";
+                Console.WriteLine(text);
+                throw new ArgumentException(text);
             }
 
             _counter += 1;

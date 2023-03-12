@@ -32,7 +32,33 @@ for (int i = 0; i < 10; i++)
 
 var blobReader = new ExportedBlobReader(
     "DefaultEndpointsProtocol=https;AccountName=tracelakeeus;AccountKey=1VBGMao9Nme2o7PzlwWYsZj1fWp7g2eULtoIlKLslOZ1GaKANqrP1HnU4/UK0g8Xn03O86WV8MRv+ASt/JZUHw==;EndpointSuffix=core.windows.net",
-    "0001");
+    new string[] {
+        "0001",
+        "0002",
+        "0003",
+        "0004",
+        "0005",
+        "0006",
+        "0008",
+        "0009",
+        "0009",
+        "0010",
+        "0011",
+        "0012",
+        "0013",
+        "0014",
+        "0015",
+        "0016",
+        "0017",
+        "0018",
+        "0019",
+        "001a",
+        "001b",
+        "001c",
+        "001d",
+        "001e",
+        "001f",
+    });
 
 var spanChannel = Channel.CreateBounded<Span>(100000);
 var traceSetChannel = Channel.CreateBounded<TraceSet>(1000);

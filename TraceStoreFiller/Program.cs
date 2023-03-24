@@ -33,30 +33,21 @@ for (int i = 0; i < 10; i++)
 var blobReader = new ExportedBlobReader(
     "DefaultEndpointsProtocol=https;AccountName=tracelakeeus;AccountKey=1VBGMao9Nme2o7PzlwWYsZj1fWp7g2eULtoIlKLslOZ1GaKANqrP1HnU4/UK0g8Xn03O86WV8MRv+ASt/JZUHw==;EndpointSuffix=core.windows.net",
     new string[] {
-        "0002",
-        "0003",
-        "0004",
-        "0005",
-        "0006",
-        "0008",
-        "0009",
-        "0009",
-        "0010",
-        "0011",
-        "0012",
-        "0013",
-        "0014",
-        "0015",
-        "0016",
-        "0017",
-        "0018",
-        "0019",
-        "001a",
-        "001b",
-        "001c",
-        "001d",
-        "001e",
-        "001f",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "1a",
+        "1b",
+        "1c",
+        "1d",
+        "1e",
+        "1f",
     });
 
 var spanChannel = Channel.CreateBounded<Span>(100000);
@@ -77,18 +68,18 @@ for (int i = 0; i < 5; i++)
     traceSetProducer.TraceSetWriter = traceSetChannel.Writer;
     traceSetProducers.Add(traceSetProducer);
 
-    var duplicateTraceIdFilter = new DuplicateTraceIdFilter("https://tracestoreindexeus.eastus.kusto.windows.net/");
+    var duplicateTraceIdFilter = new DuplicateTraceIdFilter("https://tracelakev1.eastus.kusto.windows.net");
     duplicateTraceIdFilter.UnfilteredTraceSets = traceSetChannel.Reader;
     duplicateTraceIdFilter.FilteredTraceSets = filteredTraceSetChannel.Writer;
     duplicateTraceFilters.Add(duplicateTraceIdFilter);
 }
 
-var writerFactory = new ParquetWriterFactory("DefaultEndpointsProtocol=https;AccountName=tracelakeeus;AccountKey=1VBGMao9Nme2o7PzlwWYsZj1fWp7g2eULtoIlKLslOZ1GaKANqrP1HnU4/UK0g8Xn03O86WV8MRv+ASt/JZUHw==;EndpointSuffix=core.windows.net");
+var writerFactory = new ParquetWriterFactory("DefaultEndpointsProtocol=https;AccountName=tracelakev1;AccountKey=nVzolGd2Obte+G/cdW0gVdzJA6DfNPXrIQkx1ASdV222RBFKKrb+O6DLWbTSTL+kNgNvhKhy97uj+AStAnrwdQ==;EndpointSuffix=core.windows.net");
 
 var namespaceRouters = new List<NamespaceRouter>();
-for (int i = 0; i < 2; i++)
+for (int i = 0; i < 1; i++)
 {
-    var indexWriter = new KustoIndexWriter("https://ingest-tracestoreindexeus.eastus.kusto.windows.net/");
+    var indexWriter = new KustoIndexWriter("https://ingest-tracelakev1.eastus.kusto.windows.net");
     var indexProducer = new IndexProducer(indexWriter);
 
     var namespaceRouter = new NamespaceRouter(writerFactory, indexProducer);

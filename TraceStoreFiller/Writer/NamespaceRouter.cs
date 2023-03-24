@@ -28,6 +28,11 @@ namespace TraceStoreFiller
 
                     foreach (var trace in traceSet.traces)
                     {
+                        if (trace.chunks[0].Namespace != "csmEastUSRPF")
+                        {
+                            continue;
+                        }
+
                         await _indexProducer.IndexTrace(trace);
 
                         var nsIndex = (trace.chunks[0].Endpoint, trace.chunks[0].Namespace);

@@ -20,7 +20,7 @@ namespace TraceStoreFiller
         {
             _blobServiceClient = new BlobServiceClient(connectionString);
 
-            _containerClient = _blobServiceClient.GetBlobContainerClient("kustocopy2");
+            _containerClient = _blobServiceClient.GetBlobContainerClient("kustocopy3");
             _prefixes = new List<string>(prefixes);
         }
 

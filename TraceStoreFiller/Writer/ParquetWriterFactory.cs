@@ -18,7 +18,6 @@ namespace TraceStoreFiller
         public ParquetWriter GetWriter(IndexProducer producer, string endpoint, string namespace_)
         {
             var blobStoreWriter = new BlobStoreWriter(_blobStorageConnectionString);
-            blobStoreWriter.WriteIndex = producer.IndexTraceChunk;
 
             var parquetWriter = new ParquetWriter(endpoint, namespace_);
 

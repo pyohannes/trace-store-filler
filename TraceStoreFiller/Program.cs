@@ -57,15 +57,9 @@ var csvProducer = new CSVProducer();
 csvProducer.GetNextBlobStream = blobReader.GetNextBlobStream;
 csvProducer.SpanWriter = spanChannel.Writer;
 
-var traceSetProducers = new List<TraceSetFromSpanProducer>();
-
-for (int i = 0; i < 5; i++)
-{
-    var traceSetProducer = new TraceSetFromSpanProducer();
-    traceSetProducer.SpanReader = spanChannel.Reader;
-    traceSetProducer.TraceSetWriter = traceSetChannel.Writer;
-    traceSetProducers.Add(traceSetProducer);
-}
+var traceSetProducer = new TraceSetFromSpanProducer();
+traceSetProducer.SpanReader = spanChannel.Reader;
+traceSetProducer.TraceSetWriter = traceSetChannel.Writer;
 
 var writerFactory = new ParquetWriterFactory("DefaultEndpointsProtocol=https;AccountName=tracelakev1;AccountKey=nVzolGd2Obte+G/cdW0gVdzJA6DfNPXrIQkx1ASdV222RBFKKrb+O6DLWbTSTL+kNgNvhKhy97uj+AStAnrwdQ==;EndpointSuffix=core.windows.net");
 
@@ -83,5 +77,5 @@ for (int i = 0; i < 1; i++)
 
 await Task.WhenAll(
     csvProducer.StartProcessingAsync(),
-    Task.WhenAll(traceSetProducers.Select(p => p.StartProcessingAsync())),
+    traceSetProducer.StartProcessingAsync(),
     Task.WhenAll(namespaceRouters.Select(r => r.StartRouting())));

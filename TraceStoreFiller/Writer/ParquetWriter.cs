@@ -99,8 +99,6 @@ namespace TraceStoreFiller
             }
             _chunkCounter += 1;
 
-            Console.WriteLine($"Writer for {_endpoint}/{_namespace}, got {_chunkCounter} chunks, {_spanCounter} spans");
-
             if (_earliestInFile == null || _earliestInFile > trace.startTime)
             {
                 _earliestInFile = trace.startTime;
@@ -337,7 +335,7 @@ namespace TraceStoreFiller
             }
 
             // 35 Span azureResourceProvider
-            using (LogicalColumnWriter<Nested<string?>[]> column = rowGroupWriter.Column(29).LogicalWriter<Nested<string?>[]>())
+            using (LogicalColumnWriter<Nested<string?>[]> column = rowGroupWriter.Column(35).LogicalWriter<Nested<string?>[]>())
             {
                 column.WriteBatch(_chunksInBlob.Select(trace => trace.chunks.SelectMany(chunk => chunk.spans.Select(sp => new Nested<string?>(sp.azureResourceProvider))).ToArray()).ToArray(), 0, _chunksInBlob.Count);
             }

@@ -12,16 +12,14 @@ namespace TraceStoreFiller
         private BlobServiceClient _blobServiceClient;
         private BlobContainerClient _containerClient;
 
-        public Func<TraceChunk, string, Task> WriteIndex;
-
         public BlobStoreWriter(string connectionString)
         {
             _blobServiceClient = new BlobServiceClient(connectionString);
 
-            _containerClient = _blobServiceClient.GetBlobContainerClient("lakev1");
+            _containerClient = _blobServiceClient.GetBlobContainerClient("lakenestedv1");
         }
 
-        public async Task WriteBlob(List<TraceChunk> chunks, Stream dataStream, DateTime timeCategory, string endpoint, string namespace_)
+        public async Task WriteBlob(List<Trace> chunks, Stream dataStream, DateTime timeCategory, string endpoint, string namespace_)
         {
             var path = $"{timeCategory.Year}/{timeCategory.Month}/{timeCategory.Day}/{timeCategory.Hour}/{timeCategory.Minute}";
 
@@ -40,12 +38,7 @@ namespace TraceStoreFiller
 
             await blobClient.UploadAsync(dataStream, true);
 
-            Console.WriteLine($"Uploaded blob to path {fileName}, containing {chunks.Count} chunks");
-
-            foreach (var chunk in chunks)
-            {
-                await WriteIndex(chunk, fileName);
-            }
+            Console.WriteLine($"Uploaded blob to path {fileName}, containing {chunks.Count} traces");
         }
     }
 }

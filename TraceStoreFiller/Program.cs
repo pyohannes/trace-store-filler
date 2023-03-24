@@ -52,14 +52,12 @@ var blobReader = new ExportedBlobReader(
 
 var spanChannel = Channel.CreateBounded<Span>(100000);
 var traceSetChannel = Channel.CreateBounded<TraceSet>(1000);
-var filteredTraceSetChannel = Channel.CreateBounded<TraceSet>(1000);
 
 var csvProducer = new CSVProducer();
 csvProducer.GetNextBlobStream = blobReader.GetNextBlobStream;
 csvProducer.SpanWriter = spanChannel.Writer;
 
 var traceSetProducers = new List<TraceSetFromSpanProducer>();
-var duplicateTraceFilters = new List<DuplicateTraceIdFilter>();
 
 for (int i = 0; i < 5; i++)
 {
@@ -67,11 +65,6 @@ for (int i = 0; i < 5; i++)
     traceSetProducer.SpanReader = spanChannel.Reader;
     traceSetProducer.TraceSetWriter = traceSetChannel.Writer;
     traceSetProducers.Add(traceSetProducer);
-
-    var duplicateTraceIdFilter = new DuplicateTraceIdFilter("https://tracelakev1.eastus.kusto.windows.net");
-    duplicateTraceIdFilter.UnfilteredTraceSets = traceSetChannel.Reader;
-    duplicateTraceIdFilter.FilteredTraceSets = filteredTraceSetChannel.Writer;
-    duplicateTraceFilters.Add(duplicateTraceIdFilter);
 }
 
 var writerFactory = new ParquetWriterFactory("DefaultEndpointsProtocol=https;AccountName=tracelakev1;AccountKey=nVzolGd2Obte+G/cdW0gVdzJA6DfNPXrIQkx1ASdV222RBFKKrb+O6DLWbTSTL+kNgNvhKhy97uj+AStAnrwdQ==;EndpointSuffix=core.windows.net");
@@ -83,13 +76,12 @@ for (int i = 0; i < 1; i++)
     var indexProducer = new IndexProducer(indexWriter);
 
     var namespaceRouter = new NamespaceRouter(writerFactory, indexProducer);
-    namespaceRouter.TraceSetReader = filteredTraceSetChannel.Reader;
+    namespaceRouter.TraceSetReader = traceSetChannel.Reader;
 
     namespaceRouters.Add(namespaceRouter);
 }
 
 await Task.WhenAll(
     csvProducer.StartProcessingAsync(),
-    Task.WhenAll(duplicateTraceFilters.Select(p => p.StartProcessingAsync())),
     Task.WhenAll(traceSetProducers.Select(p => p.StartProcessingAsync())),
     Task.WhenAll(namespaceRouters.Select(r => r.StartRouting())));

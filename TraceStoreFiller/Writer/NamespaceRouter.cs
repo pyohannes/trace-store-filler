@@ -24,7 +24,7 @@ namespace TraceStoreFiller
                 try
                 {
                     var traceSet = await TraceSetReader.ReadAsync();
-                    await _indexProducer.IndexTraceSet(traceSet);
+                    //await _indexProducer.IndexTraceSet(traceSet);
 
                     foreach (var trace in traceSet.traces)
                     {
@@ -33,7 +33,7 @@ namespace TraceStoreFiller
                             continue;
                         }
 
-                        await _indexProducer.IndexTrace(trace);
+                        //await _indexProducer.IndexTrace(trace);
 
                         var nsIndex = (trace.chunks[0].Endpoint, trace.chunks[0].Namespace);
                         _ = _rootNsWriters.TryGetValue(nsIndex, out var writer);
@@ -44,10 +44,7 @@ namespace TraceStoreFiller
                             _rootNsWriters[nsIndex] = writer;
                         }
 
-                        foreach (var chunk in trace.chunks)
-                        {
-                            await writer.WriteChunk(chunk);
-                        }
+                        await writer.WriteTrace(trace);
                     }
                 }
                 catch (Exception e)
